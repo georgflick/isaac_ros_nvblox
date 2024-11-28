@@ -33,6 +33,7 @@
 #include <isaac_ros_common/qos.hpp>
 
 #include "nvblox_ros/conversions/esdf_and_gradients_conversions.hpp"
+#include "nvblox_ros/conversions/image_conversions.hpp"
 #include "nvblox_ros/visualization.hpp"
 
 namespace nvblox
@@ -267,6 +268,8 @@ void NvbloxNode::advertiseTopics()
     combined_map_slice_publisher_ =
       create_publisher<nvblox_msgs::msg::DistanceMapSlice>("~/combined_map_slice", 1);
   }
+  lidar_image_publisher_ =
+    create_publisher<sensor_msgs::msg::Image>("~/lidar_image", 1);
 }
 
 void NvbloxNode::advertiseServices()
@@ -899,13 +902,13 @@ bool NvbloxNode::processLidarPointcloud(
 
   // Check if the message is too soon, and if it is discard it
   const rclcpp::Time pointcloud_timestamp = pointcloud_ptr->header.stamp;
-  if (!shouldProcess(
-      pointcloud_timestamp, integrate_lidar_last_time_,
-      params_.integrate_lidar_rate_hz))
-  {
-    // To discard we indicate that the image was processed, without actually integrating it.
-    return true;
-  }
+  // if (!shouldProcess(
+  //     pointcloud_timestamp, integrate_lidar_last_time_,
+  //     params_.integrate_lidar_rate_hz))
+  // {
+  //   // To discard we indicate that the image was processed, without actually integrating it.
+  //   return true;
+  // }
 
   // Get the TF for this image.
   const std::string target_frame = pointcloud_ptr->header.frame_id;
@@ -943,7 +946,7 @@ bool NvbloxNode::processLidarPointcloud(
     RCLCPP_ERROR_ONCE(
       get_logger(), "LiDAR intrinsics are inconsistent with the received "
       "pointcloud. Failing integration.");
-    return true;
+    //return true;
   }
 
   timing::Timer lidar_conversion_timer("ros/lidar/conversion");
@@ -977,7 +980,7 @@ void NvbloxNode::publishLayers()
       "Lookup transform failed for frame "
         << params_.map_clearing_frame_id.get()
         << ". Layer pointclouds not published");
-    return;
+    //return;
   }
 
   visualization_msgs::msg::Marker layer_msg;
@@ -1055,7 +1058,19 @@ void NvbloxNode::publishLayers()
 
     dynamic_occupancy_layer_publisher_->publish(layer_msg);
   }
+  // Lidar depth image
+  if (lidar_image_publisher_->get_subscription_count() > 0) {
+    sensor_msgs::msg::Image img_msg;
+    //const ColorImage & dynamic_overlay = multi_mapper_->getLastDynamicFrameMaskOverlay();
+    conversions::imageMessageFromDepthImage(
+      pointcloud_image_, "fused_lidar_virtual_sensor", &img_msg,
+      cuda_stream_);
 
+    //conversions::imageMessageFromColorImage(
+    //  dynamic_overlay, camera_frame_id, &img_msg,
+    //  cuda_stream_);
+    lidar_image_publisher_->publish(img_msg);
+  }
   publish_layer_timer.Stop();
 }
 

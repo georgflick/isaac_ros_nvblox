@@ -289,6 +289,8 @@ protected:
     dynamic_map_slice_publisher_;
   rclcpp::Publisher<nvblox_msgs::msg::DistanceMapSlice>::SharedPtr
     combined_map_slice_publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr
+    lidar_image_publisher_;
 
   // Services.
   rclcpp::Service<nvblox_msgs::srv::FilePath>::SharedPtr save_ply_service_;

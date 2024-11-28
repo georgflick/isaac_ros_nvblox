@@ -17,11 +17,10 @@
 
 from typing import List, Tuple
 
-from isaac_ros_launch_utils.all_types import *
 import isaac_ros_launch_utils as lu
-
-from nvblox_ros_python_utils.nvblox_launch_utils import NvbloxMode, NvbloxCamera
+from isaac_ros_launch_utils.all_types import *
 from nvblox_ros_python_utils.nvblox_constants import NVBLOX_CONTAINER_NAME
+from nvblox_ros_python_utils.nvblox_launch_utils import NvbloxCamera, NvbloxMode
 
 
 def get_isaac_sim_remappings(mode: NvbloxMode, num_cameras: int,
@@ -68,6 +67,12 @@ def get_zed_remappings(mode: NvbloxMode) -> List[Tuple[str, str]]:
     remappings.append(('pose', '/zed/zed_node/pose'))
     return remappings
 
+def get_livox_remappings(mode: NvbloxMode) -> List[Tuple[str, str]]:
+    assert mode is NvbloxMode.static, 'Nvblox only supports static mode for livox sensors.'
+    remappings = []
+    # remappings.append(('pointcloud', '/sensors/lidar/front_mid_bottom/points'))
+    remappings.append(('pointcloud', '/point_cloud_fuser/fused_point_cloud'))
+    return remappings
 
 def add_nvblox(args: lu.ArgumentContainer) -> List[Action]:
     mode = NvbloxMode[args.mode]
@@ -86,6 +91,8 @@ def add_nvblox(args: lu.ArgumentContainer) -> List[Action]:
                                    'config/nvblox/specializations/nvblox_realsense.yaml')
     zed_config = lu.get_path('nvblox_examples_bringup',
                              'config/nvblox/specializations/nvblox_zed.yaml')
+    livox_config = lu.get_path('nvblox_examples_bringup',
+                             'config/nvblox/specializations/nvblox_livox.yaml')
 
     if mode is NvbloxMode.static:
         mode_config = {}
@@ -111,6 +118,10 @@ def add_nvblox(args: lu.ArgumentContainer) -> List[Action]:
         camera_config = zed_config
         assert num_cameras == 1, 'Zed example can only run with 1 camera.'
         assert not use_lidar, 'Can not run lidar for zed example.'
+    elif camera is NvbloxCamera.livox:
+        remappings = get_livox_remappings(mode)
+        camera_config = livox_config
+        num_cameras = 0
     else:
         raise Exception(f'Camera {camera} not implemented for nvblox.')
 
